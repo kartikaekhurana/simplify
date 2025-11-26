@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Keyword Extractor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=1.0">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Resume Keyword Extractor</h1>
+            <p class="subtitle">Upload your resume PDF to extract keywords and skills</p>
+        </div>
+
+        <div class="upload-section">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-content">
+                    <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <h2>Drag & Drop your PDF here</h2>
+                    <p>or <span class="browse-link">browse</span> to choose a file</p>
+                    <p class="file-info">Supported format: PDF (Max 16MB)</p>
+                    <input type="file" id="fileInput" accept=".pdf" hidden>
+                </div>
+            </div>
+
+            <div class="file-info-display" id="fileInfo" style="display: none;">
+                <div class="file-item">
+                    <svg class="file-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                    </svg>
+                    <span class="file-name" id="fileName"></span>
+                    <button class="remove-btn" id="removeBtn">×</button>
+                </div>
+                <button class="upload-btn" id="uploadBtn">
+                    <span>Extract Keywords</span>
+                    <svg class="spinner" id="spinner" style="display: none;" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="2" x2="12" y2="6"></line>
+                        <line x1="12" y1="18" x2="12" y2="22"></line>
+                        <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                        <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                        <line x1="2" y1="12" x2="6" y2="12"></line>
+                        <line x1="18" y1="12" x2="22" y2="12"></line>
+                        <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                        <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="results-section" id="resultsSection" style="display: none;">
+            <div class="results-header">
+                <h2>Resume Analysis Results</h2>
+                <div class="total-count">Total: <span id="totalCount">0</span> keywords</div>
+            </div>
+
+            <div class="interview-cta">
+                <a href="/interview" class="interview-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                        <circle cx="12" cy="13" r="4"></circle>
+                    </svg>
+                    Start AI Interview
+                </a>
+            </div>
+
+            <div class="analysis-summary">
+                <div class="summary-card">
+                    <div class="summary-label">Domain</div>
+                    <div class="summary-value" id="domainValue">-</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-label">Seniority Level</div>
+                    <div class="summary-value" id="seniorityValue">-</div>
+                </div>
+            </div>
+
+            <div class="results-content">
+                <div class="keywords-section">
+                    <h3>Technology Keywords</h3>
+                    <div class="keywords-list" id="techKeywords"></div>
+                </div>
+
+                <div class="keywords-section">
+                    <h3>General Keywords</h3>
+                    <div class="keywords-list" id="generalKeywords"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="error-message" id="errorMessage" style="display: none;"></div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const removeBtn = document.getElementById('removeBtn');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const spinner = document.getElementById('spinner');
+        const resultsSection = document.getElementById('resultsSection');
+        const errorMessage = document.getElementById('errorMessage');
+        let selectedFile = null;
+
+        // Click to browse
+        uploadArea.addEventListener('click', () => fileInput.click());
+        document.querySelector('.browse-link').addEventListener('click', (e) => {
+            e.stopPropagation();
+            fileInput.click();
+        });
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            handleFile(e.target.files[0]);
+        });
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type === 'application/pdf') {
+                handleFile(file);
+            } else {
+                showError('Please upload a PDF file');
+            }
+        });
+
+        // Handle file selection
+        function handleFile(file) {
+            if (!file) return;
+            
+            if (file.type !== 'application/pdf') {
+                showError('Please upload a PDF file');
+                return;
+            }
+
+            if (file.size > 16 * 1024 * 1024) {
+                showError('File size must be less than 16MB');
+                return;
+            }
+
+            selectedFile = file;
+            fileName.textContent = file.name;
+            uploadArea.style.display = 'none';
+            fileInfo.style.display = 'block';
+            hideError();
+        }
+
+        // Remove file
+        removeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectedFile = null;
+            fileInput.value = '';
+            uploadArea.style.display = 'block';
+            fileInfo.style.display = 'none';
+            resultsSection.style.display = 'none';
+            hideError();
+        });
+
+        // Upload and extract
+        uploadBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            uploadBtn.disabled = true;
+            spinner.style.display = 'inline-block';
+            uploadBtn.querySelector('span').textContent = 'Processing...';
+            hideError();
+            resultsSection.style.display = 'none';
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to process file');
+                }
+
+                displayResults(data);
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                uploadBtn.disabled = false;
+                spinner.style.display = 'none';
+                uploadBtn.querySelector('span').textContent = 'Extract Keywords';
+            }
+        });
+
+        // Display results
+        function displayResults(data) {
+            document.getElementById('totalCount').textContent = data.total_keywords || 0;
+
+            // Display domain and seniority
+            document.getElementById('domainValue').textContent = data.domain || 'Not Detected';
+            document.getElementById('seniorityValue').textContent = data.seniority || 'Not Detected';
+
+            // Display tech keywords
+            const techKeywordsDiv = document.getElementById('techKeywords');
+            if (data.tech_keywords && data.tech_keywords.length > 0) {
+                techKeywordsDiv.innerHTML = data.tech_keywords.map(keyword => 
+                    `<span class="keyword-tag tech-tag">${keyword}</span>`
+                ).join('');
+            } else {
+                techKeywordsDiv.innerHTML = '<p class="no-keywords">No technology keywords found</p>';
+            }
+
+            // Display general keywords
+            const generalKeywordsDiv = document.getElementById('generalKeywords');
+            if (data.general_keywords && Object.keys(data.general_keywords).length > 0) {
+                const sorted = Object.entries(data.general_keywords)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 30);
+                generalKeywordsDiv.innerHTML = sorted.map(([keyword, count]) => 
+                    `<span class="keyword-tag">${keyword} <span class="count">${count}</span></span>`
+                ).join('');
+            } else {
+                generalKeywordsDiv.innerHTML = '<p class="no-keywords">No general keywords found</p>';
+            }
+
+            resultsSection.style.display = 'block';
+            resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // Error handling
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            setTimeout(() => {
+                errorMessage.style.opacity = '1';
+            }, 10);
+        }
+
+        function hideError() {
+            errorMessage.style.opacity = '0';
+            setTimeout(() => {
+                errorMessage.style.display = 'none';
+            }, 300);
+        }
+    </script>
+</body>
+</html>
+

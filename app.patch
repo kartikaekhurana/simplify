@@ -1,0 +1,101 @@
+<<<<<<< @app.route('/api/generate-questions', methods=['POST'])
+def generate_questions():
+    """Generate interview questions based on domain and seniority."""
+    try:
+        data = request.json
+        domain = data.get('domain', 'General / Other')
+        seniority = data.get('seniority', 'Not Specified')
+        tech_keywords = data.get('tech_keywords', [])
+        
+        questions = generate_interview_questions(domain, seniority, tech_keywords)
+        interview_flow = get_interview_flow(domain, seniority)
+        
+        return jsonify({
+            'questions': questions,
+            'flow': interview_flow,
+            'domain': domain,
+            'seniority': seniority
+        })
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+=======
+
+@app.route('/api/generate-questions', methods=['POST'])
+def generate_questions():
+    """Generate interview questions based on domain and seniority."""
+    try:
+        data = request.json
+        domain = data.get('domain', 'General / Other')
+        seniority = data.get('seniority', 'Not Specified')
+        tech_keywords = data.get('tech_keywords', [])
+        
+        questions = generate_interview_questions(domain, seniority, tech_keywords)
+        interview_flow = get_interview_flow(domain, seniority)
+        
+        return jsonify({
+            'questions': questions,
+            'flow': interview_flow,
+            'domain': domain,
+            'seniority': seniority
+        })
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/ai-response', methods=['POST'])
+def ai_response():
+    """
+    Endpoint to receive user's transcribed answer and question context,
+    and generate AI response using Hugging Face Inference API.
+    """
+    try:
+        data = request.json
+        user_input = data.get('user_input', '')
+        question = data.get('question', '')
+        
+        if not user_input or not question:
+            return jsonify({'error': 'Missing user_input or question'}), 400
+        
+        # Prepare prompt for AI
+        prompt = (f"Interview question: {question}\n"
+                  f"Candidate answer: {user_input}\n"
+                  "As an AI interviewer, provide a thoughtful follow-up response or feedback based on the candidate's answer.")
+        
+        # Hugging Face Inference API - using a text generation model that is free to use
+        API_URL = "https://api-inference.huggingface.co/models/gpt2"  # Using GPT-2 model as a free example
+        headers = {"Authorization": f"Bearer hf_demo_token"}  # Token "hf_demo_token" is placeholder
+        
+        payload = {
+            "inputs": prompt,
+            "parameters": {
+                "max_new_tokens": 150,
+                "do_sample": True,
+                "temperature": 0.7,
+                "top_p": 0.9,
+                "top_k": 50
+            }
+        }
+        
+        response = requests.post(API_URL, headers=headers, json=payload, timeout=20)
+        if response.status_code != 200:
+            return jsonify({'error': 'Failed to fetch AI response', 'details': response.text}), 502
+
+        response_json = response.json()
+        
+        # Extract generated text from the response
+        if isinstance(response_json, list) and len(response_json) > 0 and 'generated_text' in response_json[0]:
+            generated_text = response_json[0]['generated_text']
+            # The model will echo the prompt, so strip it off, keep only the reply after the prompt
+            ai_reply = generated_text[len(prompt):].strip()
+        else:
+            ai_reply = "Sorry, I couldn't generate a response at this time."
+        
+        return jsonify({'ai_response': ai_reply})
+    
+    except Exception as ex:
+        return jsonify({'error': str(ex)}), 500
+
+>>>>>>> @app.route('/api/generate-questions', methods=['POST'])

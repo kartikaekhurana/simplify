@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Interview - Resume Analyzer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/interview.css') }}">
+</head>
+<body>
+    <div class="interview-container">
+        <!-- Header -->
+        <div class="interview-header">
+            <h1>AI-Powered Interview</h1>
+            <div class="interview-info">
+                <span id="timer">00:00</span>
+                <span id="question-counter">Question 1 of 12</span>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="interview-main">
+            <!-- Video Section -->
+            <div class="video-section">
+                <div class="video-container">
+                    <video id="videoElement" autoplay playsinline></video>
+                    <canvas id="canvasElement" style="display: none;"></canvas>
+                    <div class="video-overlay" id="videoOverlay">
+                        <div class="camera-status" id="cameraStatus">
+                            <span class="status-dot"></span>
+                            <span>Camera Starting...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="video-controls">
+                    <button id="toggleCamera" class="control-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                            <circle cx="12" cy="13" r="4"></circle>
+                        </svg>
+                        <span>Camera Off</span>
+                    </button>
+                    <button id="toggleMic" class="control-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                            <line x1="12" y1="19" x2="12" y2="23"></line>
+                            <line x1="8" y1="23" x2="16" y2="23"></line>
+                        </svg>
+                        <span>Mic On</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Question Section -->
+            <div class="question-section">
+                <div class="question-card" id="questionCard">
+                    <div class="question-header">
+                        <h2>Interview Setup</h2>
+                    </div>
+                    <div class="question-content">
+                        <p>Please provide your resume analysis details to generate personalized interview questions.</p>
+                        
+                        <div class="setup-form">
+                            <div class="form-group">
+                                <label>Domain</label>
+                                <select id="domainSelect" class="form-input">
+                                    <option value="">Select Domain</option>
+                                    <option value="Data Science / Machine Learning">Data Science / Machine Learning</option>
+                                    <option value="Software Engineering / Full Stack">Software Engineering / Full Stack</option>
+                                    <option value="DevOps / Cloud Engineering">DevOps / Cloud Engineering</option>
+                                    <option value="Backend Engineering">Backend Engineering</option>
+                                    <option value="Frontend Engineering">Frontend Engineering</option>
+                                    <option value="Mobile Development">Mobile Development</option>
+                                    <option value="Product Management">Product Management</option>
+                                    <option value="Cybersecurity">Cybersecurity</option>
+                                    <option value="QA / Testing">QA / Testing</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Seniority Level</label>
+                                <select id="senioritySelect" class="form-input">
+                                    <option value="">Select Level</option>
+                                    <option value="Intern / Entry Level">Intern / Entry Level</option>
+                                    <option value="Junior / Associate">Junior / Associate</option>
+                                    <option value="Mid-Level">Mid-Level</option>
+                                    <option value="Senior">Senior</option>
+                                    <option value="Lead / Principal">Lead / Principal</option>
+                                    <option value="Director / VP / Executive">Director / VP / Executive</option>
+                                </select>
+                            </div>
+                            
+                            <button id="startInterview" class="start-btn">Start Interview</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="question-card" id="questionDisplay" style="display: none;">
+                    <div class="question-header">
+                        <h2 id="currentQuestion">Loading question...</h2>
+                    </div>
+                    <div class="question-actions">
+                        <button id="prevQuestion" class="action-btn">Previous</button>
+                        <button id="nextQuestion" class="action-btn primary">Next Question</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-section">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <!-- Completion Modal -->
+        <div class="completion-modal" id="completionModal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                </div>
+                <h2>Interview Completed!</h2>
+                <p class="completion-message">Great job completing the interview. Your responses have been recorded.</p>
+                <div class="completion-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Total Questions</span>
+                        <span class="stat-value" id="totalQuestionsStat">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Duration</span>
+                        <span class="stat-value" id="durationStat">00:00</span>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="modal-btn secondary" onclick="window.location.href='/'">Back to Home</button>
+                    <button class="modal-btn primary" onclick="restartInterview()">Start New Interview</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Camera and video setup
+        let stream = null;
+        let currentQuestionIndex = 0;
+        let questions = [];
+        let interviewStarted = false;
+        let timerInterval = null;
+        let startTime = null;
+
+        // Wait for DOM to be ready
+        const videoElement = document.getElementById('videoElement');
+        const cameraStatus = document.getElementById('cameraStatus');
+        const toggleCameraBtn = document.getElementById('toggleCamera');
+        const toggleMicBtn = document.getElementById('toggleMic');
+        const startInterviewBtn = document.getElementById('startInterview');
+        const questionCard = document.getElementById('questionCard');
+        const questionDisplay = document.getElementById('questionDisplay');
+        const currentQuestionEl = document.getElementById('currentQuestion');
+        const prevBtn = document.getElementById('prevQuestion');
+        const nextBtn = document.getElementById('nextQuestion');
+        const timerEl = document.getElementById('timer');
+        const questionCounterEl = document.getElementById('question-counter');
+        const progressFill = document.getElementById('progressFill');
+
+        // Check if all required elements exist
+        if (!videoElement || !cameraStatus || !toggleCameraBtn || !toggleMicBtn || 
+            !startInterviewBtn || !questionCard || !questionDisplay || !currentQuestionEl ||
+            !prevBtn || !nextBtn || !timerEl || !questionCounterEl || !progressFill) {
+            console.error('Some required elements are missing from the DOM');
+        }
+
+        // Initialize camera
+        async function initCamera() {
+            if (!videoElement || !cameraStatus) {
+                console.error('Camera elements not found');
+                return;
+            }
+            
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'user'
+                    },
+                    audio: true
+                });
+                
+                videoElement.srcObject = stream;
+                if (cameraStatus) {
+                    cameraStatus.innerHTML = '<span class="status-dot active"></span><span>Camera Active</span>';
+                }
+                if (toggleCameraBtn) {
+                    const span = toggleCameraBtn.querySelector('span');
+                    if (span) {
+                        span.textContent = 'Camera On';
+                    }
+                    toggleCameraBtn.classList.add('active');
+                }
+                
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                if (cameraStatus) {
+                    cameraStatus.innerHTML = '<span class="status-dot error"></span><span>Camera Access Denied</span>';
+                }
+                alert('Please allow camera and microphone access to use the interview feature.');
+            }
+        }
+
+        // Toggle camera
+        if (toggleCameraBtn) {
+            toggleCameraBtn.addEventListener('click', () => {
+                if (stream) {
+                    stream.getVideoTracks().forEach(track => {
+                        track.enabled = !track.enabled;
+                    });
+                    const isEnabled = stream.getVideoTracks()[0].enabled;
+                    const span = toggleCameraBtn.querySelector('span');
+                    if (span) {
+                        span.textContent = isEnabled ? 'Camera On' : 'Camera Off';
+                    }
+                    toggleCameraBtn.classList.toggle('active', isEnabled);
+                }
+            });
+        }
+
+        // Toggle microphone
+        if (toggleMicBtn) {
+            toggleMicBtn.addEventListener('click', () => {
+                if (stream) {
+                    stream.getAudioTracks().forEach(track => {
+                        track.enabled = !track.enabled;
+                    });
+                    const isEnabled = stream.getAudioTracks()[0].enabled;
+                    const span = toggleMicBtn.querySelector('span');
+                    if (span) {
+                        span.textContent = isEnabled ? 'Mic On' : 'Mic Off';
+                    }
+                    toggleMicBtn.classList.toggle('active', isEnabled);
+                }
+            });
+        }
+
+        // Start interview
+        if (startInterviewBtn) {
+            startInterviewBtn.addEventListener('click', async () => {
+            const domain = document.getElementById('domainSelect').value;
+            const seniority = document.getElementById('senioritySelect').value;
+
+            if (!domain || !seniority) {
+                alert('Please select both domain and seniority level.');
+                return;
+            }
+
+            try {
+                startInterviewBtn.disabled = true;
+                startInterviewBtn.textContent = 'Generating Questions...';
+
+                const response = await fetch('/api/generate-questions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        domain: domain,
+                        seniority: seniority,
+                        tech_keywords: getTechKeywords()
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    questions = data.questions;
+                    currentQuestionIndex = 0;
+                    interviewStarted = true;
+                    
+                    questionCard.style.display = 'none';
+                    questionDisplay.style.display = 'block';
+                    
+                    displayQuestion();
+                    startTimer();
+                } else {
+                    alert('Error generating questions: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                if (startInterviewBtn) {
+                    startInterviewBtn.disabled = false;
+                    startInterviewBtn.textContent = 'Start Interview';
+                }
+            }
+        });
+        }
+
+        // Get tech keywords from resume data
+        function getTechKeywords() {
+            const resumeData = sessionStorage.getItem('resumeData');
+            if (resumeData) {
+                try {
+                    const data = JSON.parse(resumeData);
+                    return data.tech_keywords || [];
+                } catch (e) {
+                    return [];
+                }
+            }
+            return [];
+        }
+
+        // Function to speak text using Web Speech API
+        let currentUtterance = null;
+        function speak(text) {
+            if (!('speechSynthesis' in window)) {
+                console.warn('Text-to-Speech not supported in this browser.');
+                return;
+            }
+            if (currentUtterance) {
+                window.speechSynthesis.cancel(); // Cancel any ongoing speech
+                currentUtterance = null;
+            }
+            currentUtterance = new SpeechSynthesisUtterance(text);
+            // Optionally set properties like pitch, rate, voice here
+            currentUtterance.onend = function() {
+                currentUtterance = null;
+                // After speaking question ends, start listening for user's answer
+                startListening();
+            };
+            window.speechSynthesis.speak(currentUtterance);
+        }
+
+        // Variables for speech recognition
+        let recognition = null;
+        let isListening = false;
+        let finalTranscript = '';
+
+        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            console.warn('Speech Recognition API not supported in this browser.');
+        } else {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = () => {
+                isListening = true;
+                // Show listening status in UI
+                updateMicStatus(true);
+            };
+
+            recognition.onend = () => {
+                isListening = false;
+                updateMicStatus(false);
+                if (finalTranscript.trim() !== '') {
+                    // Send transcript to backend and process response
+                    processUserAnswer(finalTranscript.trim());
+                } else {
+                    // No input detected, allow retry or move on
+                    alert('No voice input detected, please try again.');
+                    // Enable nextBtn to allow user to go to next question manually
+                    if (nextBtn) nextBtn.disabled = false;
+                }
+            };
+
+            recognition.onresult = (event) => {
+                let transcript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    transcript += event.results[i][0].transcript;
+                }
+                finalTranscript = transcript;
+                // Optionally show interim transcript in UI (not implemented here)
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                alert('Speech recognition error occurred: ' + event.error);
+                if (nextBtn) nextBtn.disabled = false;
+            };
+        }
+
+        // Update mic button status UI
+        function updateMicStatus(isOn) {
+            if (toggleMicBtn) {
+                const span = toggleMicBtn.querySelector('span');
+                if (span) {
+                    span.textContent = isOn ? 'Listening...' : 'Mic On';
+                }
+                toggleMicBtn.classList.toggle('listening', isOn);
+            }
+        }
+
+        // Start speech recognition listening
+        function startListening() {
+            if (!recognition) return;
+            finalTranscript = '';
+            try {
+                recognition.start();
+                if (nextBtn) nextBtn.disabled = true; // Disable next while listening
+            } catch (e) {
+                console.error('Recognition start error:', e);
+            }
+        }
+
+        // Send user's transcribed answer to backend AI and handle response
+        async function processUserAnswer(userAnswer) {
+            if (!userAnswer) return;
+            if (!questions.length) return;
+            const currentQuestion = questions[currentQuestionIndex];
+
+            // Display user's answer in UI
+            displayUserAnswer(userAnswer);
+
+            try {
+                const response = await fetch('/api/ai-response', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_input: userAnswer, question: currentQuestion })
+                });
+                const data = await response.json();
+
+                if (!response.ok) throw new Error(data.error || 'Failed to get AI response');
+
+                displayAIResponse(data.ai_response);
+                speak(data.ai_response);
+            } catch (error) {
+                console.error('Error fetching AI response:', error);
+                alert('Error fetching AI response: ' + error.message);
+            } finally {
+                // Enable next button after AI response
+                if (nextBtn) nextBtn.disabled = false;
+            }
+        }
+
+        // Display user's answer visually
+        function displayUserAnswer(text) {
+            let container = document.getElementById('userAnswerContainer');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'userAnswerContainer';
+                container.className = 'answer-container user-answer';
+                questionDisplay.appendChild(container);
+            }
+            container.textContent = `Your Answer: ${text}`;
+        }
+
+        // Display AI response visually
+        function displayAIResponse(text) {
+            let container = document.getElementById('aiResponseContainer');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'aiResponseContainer';
+                container.className = 'answer-container ai-response';
+                questionDisplay.appendChild(container);
+            }
+            container.textContent = `AI Response: ${text}`;
+        }
+
+        // Display question
+        function displayQuestion() {
+            if (questions.length === 0) return;
+            
+            if (currentQuestionEl) {
+                currentQuestionEl.textContent = questions[currentQuestionIndex];
+                speak(questions[currentQuestionIndex]);
+            }
+            if (questionCounterEl) {
+                questionCounterEl.textContent = `Question ${currentQuestionIndex + 1} of ${questions.length}`;
+            }
+            
+            // Clear previous user answer and AI response
+            const userAnswerContainer = document.getElementById('userAnswerContainer');
+            if (userAnswerContainer) userAnswerContainer.remove();
+            const aiResponseContainer = document.getElementById('aiResponseContainer');
+            if (aiResponseContainer) aiResponseContainer.remove();
+            
+            // Update progress
+            if (progressFill) {
+                const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+                progressFill.style.width = progress + '%';
+            }
+            
+            // Update buttons
+            if (prevBtn) {
+                prevBtn.disabled = currentQuestionIndex === 0;
+            }
+            if (nextBtn) {
+                nextBtn.textContent = currentQuestionIndex === questions.length - 1 ? 'Finish Interview' : 'Next Question';
+                // Disable next until user answer processed
+                nextBtn.disabled = true;
+            }
+        }
+
+        // Navigation
+        if (prevBtn) {
+            prevBtn.addEventListener('click', () => {
+                if (currentQuestionIndex > 0) {
+                    currentQuestionIndex--;
+                    displayQuestion();
+                }
+            });
+        }
+
+        if (nextBtn) {
+            nextBtn.addEventListener('click', () => {
+                if (currentQuestionIndex < questions.length - 1) {
+                    currentQuestionIndex++;
+                    displayQuestion();
+                } else {
+                    finishInterview();
+                }
+            });
+        }
+
+        // Timer
+        function startTimer() {
+            if (!timerEl) return;
+            startTime = Date.now();
+            timerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                if (timerEl) {
+                    timerEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                }
+            }, 1000);
+        }
+
+        // Finish interview
+        function finishInterview() {
+            // Stop the timer
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            
+            // Stop camera and microphone
+            if (stream) {
+                stream.getTracks().forEach(track => {
+                    track.stop();
+                });
+                stream = null;
+            }
+            
+            // Update camera status
+            if (cameraStatus) {
+                cameraStatus.innerHTML = '<span class="status-dot"></span><span>Camera Stopped</span>';
+            }
+            
+            // Update button states
+            if (toggleCameraBtn) {
+                toggleCameraBtn.classList.remove('active');
+                const span = toggleCameraBtn.querySelector('span');
+                if (span) {
+                    span.textContent = 'Camera Off';
+                }
+            }
+            
+            // Calculate final duration
+            let finalDuration = '00:00';
+            if (startTime) {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                finalDuration = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }
+            
+            // Show completion modal
+            const modal = document.getElementById('completionModal');
+            const totalQuestionsEl = document.getElementById('totalQuestionsStat');
+            const durationStatEl = document.getElementById('durationStat');
+            
+            if (totalQuestionsEl) {
+                totalQuestionsEl.textContent = questions.length;
+            }
+            if (durationStatEl) {
+                durationStatEl.textContent = finalDuration;
+            }
+            
+            if (modal) {
+                modal.style.display = 'flex';
+                // Hide question display
+                if (questionDisplay) {
+                    questionDisplay.style.display = 'none';
+                }
+            }
+        }
+
+        // Restart interview - redirect to home/upload page
+        function restartInterview() {
+            // Stop camera if still running
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            
+            // Clear timer
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            
+            // Clear session storage to start fresh
+            sessionStorage.removeItem('resumeData');
+            
+            // Redirect to home page
+            window.location.href = '/';
+        }
+
+        // Auto-populate from resume analysis if available
+        function loadResumeData() {
+            const resumeData = sessionStorage.getItem('resumeData');
+            if (resumeData) {
+                try {
+                    const data = JSON.parse(resumeData);
+                    if (data.domain) {
+                        document.getElementById('domainSelect').value = data.domain;
+                    }
+                    if (data.seniority) {
+                        document.getElementById('senioritySelect').value = data.seniority;
+                    }
+                } catch (e) {
+                    console.error('Error loading resume data:', e);
+                }
+            }
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            initCamera();
+            loadResumeData();
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+        });
+    </script>
+</body>
+</html>
+

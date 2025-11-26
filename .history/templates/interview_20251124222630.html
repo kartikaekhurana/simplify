@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Interview - Resume Analyzer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/interview.css') }}">
+</head>
+<body>
+    <div class="interview-container">
+        <!-- Header -->
+        <div class="interview-header">
+            <h1>AI-Powered Interview</h1>
+            <div class="interview-info">
+                <span id="timer">00:00</span>
+                <span id="question-counter">Question 1 of 12</span>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="interview-main">
+            <!-- Video Section -->
+            <div class="video-section">
+                <div class="video-container">
+                    <video id="videoElement" autoplay playsinline></video>
+                    <canvas id="canvasElement" style="display: none;"></canvas>
+                    <div class="video-overlay" id="videoOverlay">
+                        <div class="camera-status" id="cameraStatus">
+                            <span class="status-dot"></span>
+                            <span>Camera Starting...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="video-controls">
+                    <button id="toggleCamera" class="control-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                            <circle cx="12" cy="13" r="4"></circle>
+                        </svg>
+                        <span>Camera Off</span>
+                    </button>
+                    <button id="toggleMic" class="control-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                            <line x1="12" y1="19" x2="12" y2="23"></line>
+                            <line x1="8" y1="23" x2="16" y2="23"></line>
+                        </svg>
+                        <span>Mic On</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Question Section -->
+            <div class="question-section">
+                <div class="question-card" id="questionCard">
+                    <div class="question-header">
+                        <h2>Interview Setup</h2>
+                    </div>
+                    <div class="question-content">
+                        <p>Please provide your resume analysis details to generate personalized interview questions.</p>
+                        
+                        <div class="setup-form">
+                            <div class="form-group">
+                                <label>Domain</label>
+                                <select id="domainSelect" class="form-input">
+                                    <option value="">Select Domain</option>
+                                    <option value="Data Science / Machine Learning">Data Science / Machine Learning</option>
+                                    <option value="Software Engineering / Full Stack">Software Engineering / Full Stack</option>
+                                    <option value="DevOps / Cloud Engineering">DevOps / Cloud Engineering</option>
+                                    <option value="Backend Engineering">Backend Engineering</option>
+                                    <option value="Frontend Engineering">Frontend Engineering</option>
+                                    <option value="Mobile Development">Mobile Development</option>
+                                    <option value="Product Management">Product Management</option>
+                                    <option value="Cybersecurity">Cybersecurity</option>
+                                    <option value="QA / Testing">QA / Testing</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Seniority Level</label>
+                                <select id="senioritySelect" class="form-input">
+                                    <option value="">Select Level</option>
+                                    <option value="Intern / Entry Level">Intern / Entry Level</option>
+                                    <option value="Junior / Associate">Junior / Associate</option>
+                                    <option value="Mid-Level">Mid-Level</option>
+                                    <option value="Senior">Senior</option>
+                                    <option value="Lead / Principal">Lead / Principal</option>
+                                    <option value="Director / VP / Executive">Director / VP / Executive</option>
+                                </select>
+                            </div>
+                            
+                            <button id="startInterview" class="start-btn">Start Interview</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="question-card" id="questionDisplay" style="display: none;">
+                    <div class="question-header">
+                        <h2 id="currentQuestion">Loading question...</h2>
+                    </div>
+                    <div class="question-actions">
+                        <button id="prevQuestion" class="action-btn">Previous</button>
+                        <button id="nextQuestion" class="action-btn primary">Next Question</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-section">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Camera and video setup
+        let stream = null;
+        let currentQuestionIndex = 0;
+        let questions = [];
+        let interviewStarted = false;
+        let timerInterval = null;
+        let startTime = null;
+
+        // Wait for DOM to be ready
+        const videoElement = document.getElementById('videoElement');
+        const cameraStatus = document.getElementById('cameraStatus');
+        const toggleCameraBtn = document.getElementById('toggleCamera');
+        const toggleMicBtn = document.getElementById('toggleMic');
+        const startInterviewBtn = document.getElementById('startInterview');
+        const questionCard = document.getElementById('questionCard');
+        const questionDisplay = document.getElementById('questionDisplay');
+        const currentQuestionEl = document.getElementById('currentQuestion');
+        const prevBtn = document.getElementById('prevQuestion');
+        const nextBtn = document.getElementById('nextQuestion');
+        const timerEl = document.getElementById('timer');
+        const questionCounterEl = document.getElementById('question-counter');
+        const progressFill = document.getElementById('progressFill');
+
+        // Check if all required elements exist
+        if (!videoElement || !cameraStatus || !toggleCameraBtn || !toggleMicBtn || 
+            !startInterviewBtn || !questionCard || !questionDisplay || !currentQuestionEl ||
+            !prevBtn || !nextBtn || !timerEl || !questionCounterEl || !progressFill) {
+            console.error('Some required elements are missing from the DOM');
+        }
+
+        // Initialize camera
+        async function initCamera() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'user'
+                    },
+                    audio: true
+                });
+                
+                videoElement.srcObject = stream;
+                cameraStatus.innerHTML = '<span class="status-dot active"></span><span>Camera Active</span>';
+                toggleCameraBtn.querySelector('span').textContent = 'Camera On';
+                toggleCameraBtn.classList.add('active');
+                
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                cameraStatus.innerHTML = '<span class="status-dot error"></span><span>Camera Access Denied</span>';
+                alert('Please allow camera and microphone access to use the interview feature.');
+            }
+        }
+
+        // Toggle camera
+        toggleCameraBtn.addEventListener('click', () => {
+            if (stream) {
+                stream.getVideoTracks().forEach(track => {
+                    track.enabled = !track.enabled;
+                });
+                const isEnabled = stream.getVideoTracks()[0].enabled;
+                toggleCameraBtn.querySelector('span').textContent = isEnabled ? 'Camera On' : 'Camera Off';
+                toggleCameraBtn.classList.toggle('active', isEnabled);
+            }
+        });
+
+        // Toggle microphone
+        toggleMicBtn.addEventListener('click', () => {
+            if (stream) {
+                stream.getAudioTracks().forEach(track => {
+                    track.enabled = !track.enabled;
+                });
+                const isEnabled = stream.getAudioTracks()[0].enabled;
+                toggleMicBtn.querySelector('span').textContent = isEnabled ? 'Mic On' : 'Mic Off';
+                toggleMicBtn.classList.toggle('active', isEnabled);
+            }
+        });
+
+        // Start interview
+        startInterviewBtn.addEventListener('click', async () => {
+            const domain = document.getElementById('domainSelect').value;
+            const seniority = document.getElementById('senioritySelect').value;
+
+            if (!domain || !seniority) {
+                alert('Please select both domain and seniority level.');
+                return;
+            }
+
+            try {
+                startInterviewBtn.disabled = true;
+                startInterviewBtn.textContent = 'Generating Questions...';
+
+                const response = await fetch('/api/generate-questions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        domain: domain,
+                        seniority: seniority,
+                        tech_keywords: getTechKeywords()
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    questions = data.questions;
+                    currentQuestionIndex = 0;
+                    interviewStarted = true;
+                    
+                    questionCard.style.display = 'none';
+                    questionDisplay.style.display = 'block';
+                    
+                    displayQuestion();
+                    startTimer();
+                } else {
+                    alert('Error generating questions: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                startInterviewBtn.disabled = false;
+                startInterviewBtn.textContent = 'Start Interview';
+            }
+        });
+
+        // Get tech keywords from resume data
+        function getTechKeywords() {
+            const resumeData = sessionStorage.getItem('resumeData');
+            if (resumeData) {
+                try {
+                    const data = JSON.parse(resumeData);
+                    return data.tech_keywords || [];
+                } catch (e) {
+                    return [];
+                }
+            }
+            return [];
+        }
+
+        // Display question
+        function displayQuestion() {
+            if (questions.length === 0) return;
+            
+            currentQuestionEl.textContent = questions[currentQuestionIndex];
+            questionCounterEl.textContent = `Question ${currentQuestionIndex + 1} of ${questions.length}`;
+            
+            // Update progress
+            const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+            progressFill.style.width = progress + '%';
+            
+            // Update buttons
+            prevBtn.disabled = currentQuestionIndex === 0;
+            nextBtn.textContent = currentQuestionIndex === questions.length - 1 ? 'Finish Interview' : 'Next Question';
+        }
+
+        // Navigation
+        prevBtn.addEventListener('click', () => {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                displayQuestion();
+            }
+        });
+
+        nextBtn.addEventListener('click', () => {
+            if (currentQuestionIndex < questions.length - 1) {
+                currentQuestionIndex++;
+                displayQuestion();
+            } else {
+                finishInterview();
+            }
+        });
+
+        // Timer
+        function startTimer() {
+            startTime = Date.now();
+            timerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                timerEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        // Finish interview
+        function finishInterview() {
+            clearInterval(timerInterval);
+            alert('Interview completed! Great job!');
+            // Could redirect or show results here
+        }
+
+        // Auto-populate from resume analysis if available
+        function loadResumeData() {
+            const resumeData = sessionStorage.getItem('resumeData');
+            if (resumeData) {
+                try {
+                    const data = JSON.parse(resumeData);
+                    if (data.domain) {
+                        document.getElementById('domainSelect').value = data.domain;
+                    }
+                    if (data.seniority) {
+                        document.getElementById('senioritySelect').value = data.seniority;
+                    }
+                } catch (e) {
+                    console.error('Error loading resume data:', e);
+                }
+            }
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            initCamera();
+            loadResumeData();
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+        });
+    </script>
+</body>
+</html>
+
