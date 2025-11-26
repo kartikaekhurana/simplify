@@ -315,7 +315,7 @@
 
         // Function to speak text using Web Speech API
         let currentUtterance = null;
-        function speak(text) {
+        function speak(text, callback) {
             if (!('speechSynthesis' in window)) {
                 console.warn('Text-to-Speech not supported in this browser.');
                 return;
@@ -324,12 +324,24 @@
                 window.speechSynthesis.cancel(); // Cancel any ongoing speech
                 currentUtterance = null;
             }
+            // Disable microphone while speaking to prevent voice overlap
+            if (stream) {
+                stream.getAudioTracks().forEach(track => {
+                    track.enabled = false;
+                });
+            }
             currentUtterance = new SpeechSynthesisUtterance(text);
             // Optionally set properties like pitch, rate, voice here
             currentUtterance.onend = function() {
+                // Re-enable microphone after speaking
+                if (stream) {
+                    stream.getAudioTracks().forEach(track => {
+                        track.enabled = true;
+                    });
+                }
                 currentUtterance = null;
-                // After speaking question ends, start listening for user's answer
-                startListening();
+                // Execute callback if provided (e.g., start listening for questions)
+                if (callback) callback();
             };
             window.speechSynthesis.speak(currentUtterance);
         }
@@ -464,10 +476,10 @@
         // Display question
         function displayQuestion() {
             if (questions.length === 0) return;
-            
+
             if (currentQuestionEl) {
                 currentQuestionEl.textContent = questions[currentQuestionIndex];
-                speak(questions[currentQuestionIndex]);
+                speak(questions[currentQuestionIndex], startListening);
             }
             if (questionCounterEl) {
                 questionCounterEl.textContent = `Question ${currentQuestionIndex + 1} of ${questions.length}`;
