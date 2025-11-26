@@ -192,6 +192,7 @@
                 });
                 
                 videoElement.srcObject = stream;
+                videoElement.muted = true; // Mute video element to prevent audio feedback/overlap on mobile
                 if (cameraStatus) {
                     cameraStatus.innerHTML = '<span class="status-dot active"></span><span>Camera Active</span>';
                 }
@@ -350,6 +351,7 @@
         let recognition = null;
         let isListening = false;
         let finalTranscript = '';
+        let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
         if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
             console.warn('Speech Recognition API not supported in this browser.');
@@ -359,6 +361,12 @@
             recognition.continuous = false;
             recognition.interimResults = false;
             recognition.lang = 'en-US';
+
+            // Mobile-specific adjustments
+            if (isMobile) {
+                recognition.continuous = true; // Better for mobile
+                recognition.interimResults = true; // Allow interim results
+            }
 
             recognition.onstart = () => {
                 isListening = true;
@@ -374,7 +382,10 @@
                     processUserAnswer(finalTranscript.trim());
                 } else {
                     // No input detected, allow retry or move on
-                    alert('No voice input detected, please try again.');
+                    const message = isMobile ?
+                        'No voice input detected on mobile. Please ensure microphone permissions are granted and try speaking clearly.' :
+                        'No voice input detected, please try again.';
+                    alert(message);
                     // Enable nextBtn to allow user to go to next question manually
                     if (nextBtn) nextBtn.disabled = false;
                 }
@@ -414,6 +425,15 @@
             try {
                 recognition.start();
                 if (nextBtn) nextBtn.disabled = true; // Disable next while listening
+
+                // Add timeout for mobile to stop listening if no input detected
+                if (isMobile) {
+                    setTimeout(() => {
+                        if (isListening) {
+                            recognition.stop();
+                        }
+                    }, 5000); // 5 seconds timeout on mobile
+                }
             } catch (e) {
                 console.error('Recognition start error:', e);
             }
