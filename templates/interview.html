@@ -233,6 +233,12 @@
                 if (cameraPermissionStatus) cameraPermissionStatus.textContent = 'Granted';
                 if (micPermissionStatus) micPermissionStatus.textContent = 'Granted';
 
+                // Initialize speech recognition after permissions are granted
+                const speechInitialized = initSpeechRecognition();
+                if (!speechInitialized) {
+                    console.warn('Speech recognition initialization failed, but camera permissions granted');
+                }
+
                 permissionsGranted = true;
                 return true;
 
@@ -411,21 +417,38 @@
         function speak(text, callback) {
             if (!('speechSynthesis' in window)) {
                 console.warn('Text-to-Speech not supported in this browser.');
+                // If TTS not supported, just call callback after a delay
+                if (callback) setTimeout(callback, 2000);
                 return;
             }
+
             if (currentUtterance) {
                 window.speechSynthesis.cancel(); // Cancel any ongoing speech
                 currentUtterance = null;
             }
+
             // Disable microphone while speaking to prevent voice overlap
             if (stream) {
                 stream.getAudioTracks().forEach(track => {
                     track.enabled = false;
                 });
             }
+
             currentUtterance = new SpeechSynthesisUtterance(text);
-            // Optionally set properties like pitch, rate, voice here
+
+            // Mobile-specific TTS settings
+            if (isMobile) {
+                currentUtterance.rate = 0.9; // Slightly slower for mobile
+                currentUtterance.pitch = 1.0;
+                currentUtterance.volume = 1.0;
+            }
+
+            currentUtterance.onstart = function() {
+                console.log('TTS started');
+            };
+
             currentUtterance.onend = function() {
+                console.log('TTS ended');
                 // Re-enable microphone after speaking
                 if (stream) {
                     stream.getAudioTracks().forEach(track => {
@@ -436,7 +459,26 @@
                 // Execute callback if provided (e.g., start listening for questions)
                 if (callback) callback();
             };
-            window.speechSynthesis.speak(currentUtterance);
+
+            currentUtterance.onerror = function(event) {
+                console.error('TTS error:', event);
+                // Re-enable microphone even on error
+                if (stream) {
+                    stream.getAudioTracks().forEach(track => {
+                        track.enabled = true;
+                    });
+                }
+                currentUtterance = null;
+                // Still call callback on error to not break the flow
+                if (callback) callback();
+            };
+
+            try {
+                window.speechSynthesis.speak(currentUtterance);
+            } catch (error) {
+                console.error('TTS speak error:', error);
+                if (callback) callback();
+            }
         }
 
         // Variables for speech recognition
@@ -445,58 +487,95 @@
         let finalTranscript = '';
         let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-            console.warn('Speech Recognition API not supported in this browser.');
-        } else {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new SpeechRecognition();
-            recognition.continuous = false;
-            recognition.interimResults = false;
-            recognition.lang = 'en-US';
-
-            // Mobile-specific adjustments
-            if (isMobile) {
-                recognition.continuous = true; // Better for mobile
-                recognition.interimResults = true; // Allow interim results
+        // Initialize speech recognition after permissions are granted
+        function initSpeechRecognition() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                console.warn('Speech Recognition API not supported in this browser.');
+                return false;
             }
 
-            recognition.onstart = () => {
-                isListening = true;
-                // Show listening status in UI
-                updateMicStatus(true);
-            };
+            try {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
 
-            recognition.onend = () => {
-                isListening = false;
-                updateMicStatus(false);
-                if (finalTranscript.trim() !== '') {
-                    // Send transcript to backend and process response
-                    processUserAnswer(finalTranscript.trim());
+                // Basic settings
+                recognition.lang = 'en-US';
+                recognition.interimResults = false;
+
+                // Mobile-specific settings - use non-continuous for better mobile support
+                if (isMobile) {
+                    recognition.continuous = false; // Changed from true to false for better mobile compatibility
+                    recognition.maxAlternatives = 1;
                 } else {
-                    // No input detected, allow retry or move on
-                    const message = isMobile ?
-                        'No voice input detected on mobile. Please ensure microphone permissions are granted and try speaking clearly.' :
-                        'No voice input detected, please try again.';
-                    alert(message);
-                    // Enable nextBtn to allow user to go to next question manually
+                    recognition.continuous = false;
+                }
+
+                recognition.onstart = () => {
+                    console.log('Speech recognition started');
+                    isListening = true;
+                    updateMicStatus(true);
+                };
+
+                recognition.onend = () => {
+                    console.log('Speech recognition ended');
+                    isListening = false;
+                    updateMicStatus(false);
+
+                    if (finalTranscript.trim() !== '') {
+                        console.log('Final transcript:', finalTranscript.trim());
+                        processUserAnswer(finalTranscript.trim());
+                    } else {
+                        console.log('No speech detected');
+                        // More specific message for mobile
+                        const message = isMobile ?
+                            'No voice input detected. Please ensure you\'re speaking clearly and the microphone is working. Tap "Next Question" to continue manually.' :
+                            'No voice input detected, please try again.';
+                        alert(message);
+                        if (nextBtn) nextBtn.disabled = false;
+                    }
+                };
+
+                recognition.onresult = (event) => {
+                    console.log('Speech recognition result received');
+                    let transcript = '';
+                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                        if (event.results[i].isFinal) {
+                            transcript += event.results[i][0].transcript;
+                        }
+                    }
+                    finalTranscript = transcript;
+                    console.log('Transcript:', transcript);
+                };
+
+                recognition.onerror = (event) => {
+                    console.error('Speech recognition error:', event.error, event);
+
+                    // Handle different error types
+                    let errorMessage = 'Speech recognition error occurred';
+                    if (event.error === 'not-allowed') {
+                        errorMessage = 'Microphone access denied. Please check your browser permissions.';
+                    } else if (event.error === 'no-speech') {
+                        errorMessage = 'No speech was detected. Please try speaking again.';
+                    } else if (event.error === 'audio-capture') {
+                        errorMessage = 'Audio capture failed. Please check your microphone.';
+                    } else if (event.error === 'network') {
+                        errorMessage = 'Network error during speech recognition.';
+                    }
+
+                    alert(errorMessage + ' (' + event.error + ')');
+
                     if (nextBtn) nextBtn.disabled = false;
-                }
-            };
+                    isListening = false;
+                    updateMicStatus(false);
+                };
 
-            recognition.onresult = (event) => {
-                let transcript = '';
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    transcript += event.results[i][0].transcript;
-                }
-                finalTranscript = transcript;
-                // Optionally show interim transcript in UI (not implemented here)
-            };
-
-            recognition.onerror = (event) => {
-                console.error('Speech recognition error:', event.error);
-                alert('Speech recognition error occurred: ' + event.error);
-                if (nextBtn) nextBtn.disabled = false;
-            };
+                console.log('Speech recognition initialized successfully');
+                return true;
+            } catch (error) {
+                console.error('Failed to initialize speech recognition:', error);
+                alert('Speech recognition is not supported in this browser.');
+                return false;
+            }
         }
 
         // Update mic button status UI
