@@ -53,7 +53,31 @@
 
             <!-- Question Section -->
             <div class="question-section">
-                <div class="question-card" id="questionCard">
+                <!-- Permission Request Section -->
+                <div class="question-card" id="permissionCard">
+                    <div class="question-header">
+                        <h2>Camera & Microphone Access</h2>
+                    </div>
+                    <div class="question-content">
+                        <p>To participate in the AI interview, we need access to your camera and microphone for video recording and voice responses.</p>
+                        <div class="permission-status">
+                            <div class="permission-item">
+                                <span class="permission-icon">📹</span>
+                                <span class="permission-text">Camera: <span id="cameraPermissionStatus">Not Requested</span></span>
+                            </div>
+                            <div class="permission-item">
+                                <span class="permission-icon">🎤</span>
+                                <span class="permission-text">Microphone: <span id="micPermissionStatus">Not Requested</span></span>
+                            </div>
+                        </div>
+                        <div class="permission-actions">
+                            <button id="grantPermissions" class="start-btn">Grant Permissions</button>
+                            <p class="permission-note">Click "Grant Permissions" to allow camera and microphone access. This is required for the interview.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="question-card" id="questionCard" style="display: none;">
                     <div class="question-header">
                         <h2>Interview Setup</h2>
                     </div>
@@ -151,6 +175,7 @@
         let interviewStarted = false;
         let timerInterval = null;
         let startTime = null;
+        let permissionsGranted = false;
 
         // Wait for DOM to be ready
         const videoElement = document.getElementById('videoElement');
@@ -166,12 +191,59 @@
         const timerEl = document.getElementById('timer');
         const questionCounterEl = document.getElementById('question-counter');
         const progressFill = document.getElementById('progressFill');
+        const permissionCard = document.getElementById('permissionCard');
+        const grantPermissionsBtn = document.getElementById('grantPermissions');
+        const cameraPermissionStatus = document.getElementById('cameraPermissionStatus');
+        const micPermissionStatus = document.getElementById('micPermissionStatus');
 
         // Check if all required elements exist
         if (!videoElement || !cameraStatus || !toggleCameraBtn || !toggleMicBtn || 
             !startInterviewBtn || !questionCard || !questionDisplay || !currentQuestionEl ||
             !prevBtn || !nextBtn || !timerEl || !questionCounterEl || !progressFill) {
             console.error('Some required elements are missing from the DOM');
+        }
+
+        // Request permissions for camera and microphone
+        async function requestPermissions() {
+            try {
+                if (cameraPermissionStatus) cameraPermissionStatus.textContent = 'Requesting...';
+                if (micPermissionStatus) micPermissionStatus.textContent = 'Requesting...';
+
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'user'
+                    },
+                    audio: true
+                });
+
+                videoElement.srcObject = stream;
+                videoElement.muted = true; // Mute video element to prevent audio feedback/overlap on mobile
+
+                if (cameraStatus) {
+                    cameraStatus.innerHTML = '<span class="status-dot active"></span><span>Camera Active</span>';
+                }
+                if (toggleCameraBtn) {
+                    const span = toggleCameraBtn.querySelector('span');
+                    if (span) span.textContent = 'Camera On';
+                    toggleCameraBtn.classList.add('active');
+                }
+
+                if (cameraPermissionStatus) cameraPermissionStatus.textContent = 'Granted';
+                if (micPermissionStatus) micPermissionStatus.textContent = 'Granted';
+
+                permissionsGranted = true;
+                return true;
+
+            } catch (error) {
+                console.error('Error requesting permissions:', error);
+                if (cameraPermissionStatus) cameraPermissionStatus.textContent = 'Denied';
+                if (micPermissionStatus) micPermissionStatus.textContent = 'Denied';
+
+                alert('Camera and microphone access is required for the interview. Please allow permissions and try again.');
+                return false;
+            }
         }
 
         // Initialize camera
@@ -211,6 +283,26 @@
                 }
                 alert('Please allow camera and microphone access to use the interview feature.');
             }
+        }
+
+        // Grant permissions button
+        if (grantPermissionsBtn) {
+            grantPermissionsBtn.addEventListener('click', async () => {
+                grantPermissionsBtn.disabled = true;
+                grantPermissionsBtn.textContent = 'Requesting Permissions...';
+
+                const success = await requestPermissions();
+
+                if (success) {
+                    // Hide permission card and show interview setup
+                    if (permissionCard) permissionCard.style.display = 'none';
+                    if (questionCard) questionCard.style.display = 'block';
+                } else {
+                    // Reset button on failure
+                    grantPermissionsBtn.disabled = false;
+                    grantPermissionsBtn.textContent = 'Grant Permissions';
+                }
+            });
         }
 
         // Toggle camera
@@ -662,7 +754,7 @@
 
         // Initialize on page load
         window.addEventListener('load', () => {
-            initCamera();
+            // Show permission request first, don't initialize camera automatically
             loadResumeData();
         });
 
