@@ -630,7 +630,12 @@
                 if (!response.ok) throw new Error(data.error || 'Failed to get AI response');
 
                 displayAIResponse(data.ai_response);
-                speak(data.ai_response);
+                speak(data.ai_response, () => {
+    // Restart listening once AI stops speaking
+    console.log("Restarting listening after AI response...");
+    startListening();
+});
+
             } catch (error) {
                 console.error('Error fetching AI response:', error);
                 alert('Error fetching AI response: ' + error.message);
