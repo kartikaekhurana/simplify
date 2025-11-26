@@ -20,7 +20,7 @@ app.config['ALLOWED_EXTENSIONS'] = {'pdf'}
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-HF_TOKEN = "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"
+HF_TOKEN = os.getenv("HF_TOKEN")
 HF_API_URL = "https://router.huggingface.co/v1/chat/completions"
 HF_MODEL = "meta-llama/Llama-3.2-3B-Instruct:novita"
 
